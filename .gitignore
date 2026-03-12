@@ -1,3 +1,9 @@
+# ============================================
+# UniAgent - Combined .gitignore
+# Django Backend + React/Vite Frontend
+# ============================================
+
+# ---- Python / Django (Backend) ----
 # Environments
 venv/
 env/
@@ -19,7 +25,7 @@ db.sqlite3-journal
 *.sql
 *.mysql
 
-# Python
+# Python packaging
 *.py[cod]
 *$py.class
 .Python
@@ -41,10 +47,31 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# VS Code
-.vscode/
-.history/
+# ---- Node.js / React / Vite (Frontend) ----
+# Logs
+logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# OS Files
+node_modules
+dist
+dist-ssr
+*.local
+
+# ---- Editor directories and files ----
+.vscode/*
+!.vscode/extensions.json
+.idea
+.history/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ---- OS Files ----
 .DS_Store
 Thumbs.db

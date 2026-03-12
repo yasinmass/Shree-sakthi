@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #000000;
+  --color-secondary: #111111;
+  --color-card: #1f1f1f;
+  --color-accent: #2a2a2a;
+  --color-text: #ffffff;
+  --color-border: #262626;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+}
+
+:root {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+@layer utilities {
+  .animate-in {
+    animation-duration: 500ms;
+    animation-fill-mode: both;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .fade-in {
+    animation-name: fade-in;
+  }
+
+  .zoom-in {
+    animation-name: zoom-in;
+  }
+
+  .slide-in-from-bottom-2 {
+    animation-name: slide-in-from-bottom;
+    --slide-translate-y: 0.5rem;
+  }
+
+  .slide-in-from-bottom-4 {
+    animation-name: slide-in-from-bottom;
+    --slide-translate-y: 1rem;
+  }
+
+  .slide-in-from-bottom-8 {
+    animation-name: slide-in-from-bottom;
+    --slide-translate-y: 2rem;
+  }
+
+  .slide-in-from-top-2 {
+    animation-name: slide-in-from-top;
+    --slide-translate-y: -0.5rem;
+  }
+
+  .slide-in-from-top-4 {
+    animation-name: slide-in-from-top;
+    --slide-translate-y: -1rem;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes zoom-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-in-from-bottom {
+  from { opacity: 0; transform: translateY(var(--slide-translate-y, 1rem)); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-from-top {
+  from { opacity: 0; transform: translateY(var(--slide-translate-y, -1rem)); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
