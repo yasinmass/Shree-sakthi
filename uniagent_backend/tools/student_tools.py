@@ -1,4 +1,4 @@
-def get_students(dept=None, year=None, gpa_above=None):
+def get_students(dept=None, year=None, gpa_above=None, min_gpa=None, **kwargs):
     """
     Fetch students filtered by optional department, year, and minimum GPA.
     Returns a list of student dicts.
@@ -6,12 +6,17 @@ def get_students(dept=None, year=None, gpa_above=None):
     from college.models import Student
     
     qs = Student.objects.all()
-    if dept:
-        qs = qs.filter(department__iexact=dept)
+    
+    dept_val = dept if dept is not None else kwargs.get('department')
+    if dept_val:
+        qs = qs.filter(department__iexact=dept_val)
+        
     if year:
         qs = qs.filter(year=int(year))
-    if gpa_above is not None:
-        qs = qs.filter(gpa__gte=float(gpa_above))
+        
+    gpa_val = gpa_above if gpa_above is not None else min_gpa
+    if gpa_val is not None:
+        qs = qs.filter(gpa__gte=float(gpa_val))
 
     return [
         {
@@ -26,13 +31,17 @@ def get_students(dept=None, year=None, gpa_above=None):
     ]
 
 
-def enroll_student(name, dept, year, email, roll_no=None):
+def enroll_student(name=None, dept=None, year=None, email=None, roll_no=None, **kwargs):
     """
     Enroll a new student. roll_no is auto-generated if not provided.
     Returns the created student dict.
     """
     from college.models import Student
     
+    dept = dept or kwargs.get('department')
+    if not dept:
+        return {"error": "Department code is required."}
+        
     if not roll_no:
         # Auto-generate: dept + highest existing roll number + 1
         last = Student.objects.filter(department__iexact=dept).order_by('-roll_no').first()
@@ -62,7 +71,7 @@ def enroll_student(name, dept, year, email, roll_no=None):
     }
 
 
-def update_student(roll_no, field, value):
+def update_student(roll_no=None, field=None, value=None, **kwargs):
     """
     Update a single field of a student record.
     Allowed fields: name, department, year, gpa, email
@@ -88,7 +97,7 @@ def update_student(roll_no, field, value):
     return {"status": "updated", "roll_no": roll_no, "field": field, "new_value": value}
 
 
-def delete_student(roll_no):
+def delete_student(roll_no=None, **kwargs):
     """
     Delete a student by roll_no.
     """

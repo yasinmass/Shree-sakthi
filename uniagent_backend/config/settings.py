@@ -101,5 +101,5 @@ REST_FRAMEWORK = {
     ],
 }
 
-# ── Gemini ────────────────────────────────────────────────────────────────────
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+# ── LLM Config ────────────────────────────────────────────────────────────────
+# Using Ollama locally on 'http://localhost:11434'

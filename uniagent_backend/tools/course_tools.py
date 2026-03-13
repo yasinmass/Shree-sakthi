@@ -1,12 +1,15 @@
-def get_courses(dept=None, semester=None):
+def get_courses(dept=None, semester=None, **kwargs):
     """
     List courses filtered by optional department and/or semester.
     """
     from college.models import Course
     
     qs = Course.objects.select_related('faculty').all()
-    if dept:
-        qs = qs.filter(department__iexact=dept)
+    
+    dept_val = dept if dept is not None else kwargs.get('department')
+    if dept_val:
+        qs = qs.filter(department__iexact=dept_val)
+        
     if semester:
         qs = qs.filter(semester=int(semester))
 
@@ -23,11 +26,13 @@ def get_courses(dept=None, semester=None):
     ]
 
 
-def create_course(name, dept, semester, credits=3):
+def create_course(name=None, dept=None, semester=None, credits=3, **kwargs):
     """
     Create a new course. Returns the created course dict.
     """
     from college.models import Course
+    
+    dept = dept or kwargs.get('department')
     
     if Course.objects.filter(name__iexact=name, department__iexact=dept, semester=int(semester)).exists():
         return {"error": f"Course '{name}' for {dept} Sem {semester} already exists."}

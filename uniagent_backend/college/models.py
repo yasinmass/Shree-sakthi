@@ -1,4 +1,25 @@
 from django.db import models
+from django.contrib.auth.models import User
+
+class UserProfile(models.Model):
+    ROLE_CHOICES = [
+        ('Student', 'Student'),
+        ('Faculty', 'Faculty'),
+        ('HOD', 'HOD'),
+        ('Admin', 'Admin')
+    ]
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='Student')
+    
+    # Secure bindings to the college record tables
+    student_profile = models.OneToOneField('Student', on_delete=models.SET_NULL, null=True, blank=True, related_name='user_account')
+    faculty_profile = models.OneToOneField('Faculty', on_delete=models.SET_NULL, null=True, blank=True, related_name='user_account')
+
+    class Meta:
+        db_table = 'user_profiles'
+        
+    def __str__(self):
+        return f"{self.user.username} ({self.role})"
 
 
 class Student(models.Model):

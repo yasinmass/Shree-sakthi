@@ -5,7 +5,7 @@ from .models import Agent
 class AgentSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Agent
-        fields = ['id', 'name', 'description', 'domain', 'system_prompt', 'created_at']
+        fields = ['id', 'name', 'description', 'domain', 'system_prompt', 'owner_email', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 
@@ -14,4 +14,13 @@ class AgentCreateRequestSerializer(serializers.Serializer):
     purpose = serializers.CharField(
         max_length=500,
         help_text="Natural language description of what the agent should do."
+    )
+    owner_email = serializers.EmailField(
+        required=True,
+        help_text="The email of the user creating the agent."
+    )
+    role = serializers.CharField(
+        required=True,
+        max_length=50,
+        help_text="The role of the user (Student, Faculty, HOD, Admin)."
     )

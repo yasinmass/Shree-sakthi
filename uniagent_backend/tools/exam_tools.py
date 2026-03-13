@@ -1,7 +1,7 @@
 from datetime import date
 
 
-def get_top_students(subject, limit=10):
+def get_top_students(subject=None, limit=10, **kwargs):
     """
     Return top students for a given subject (course name), ordered by marks descending.
     """
@@ -35,7 +35,7 @@ def get_top_students(subject, limit=10):
     ]
 
 
-def record_marks(roll_no, subject, marks, exam_type='FINAL', max_marks=100):
+def record_marks(roll_no=None, subject=None, marks=None, exam_type='FINAL', max_marks=100, **kwargs):
     """
     Record or update exam marks for a student in a subject.
     exam_type: MID1 | MID2 | FINAL | LAB
@@ -80,7 +80,7 @@ def record_marks(roll_no, subject, marks, exam_type='FINAL', max_marks=100):
     }
 
 
-def schedule_exam(subject, semester, exam_date, exam_type='FINAL'):
+def schedule_exam(subject=None, semester=None, exam_date=None, exam_type='FINAL', **kwargs):
     """
     Schedule/confirm an exam by verifying the course exists and returning a schedule entry.
     (Stores nothing — acts as confirmation tool. Extend with an ExamSchedule model if needed.)

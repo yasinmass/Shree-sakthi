@@ -10,8 +10,14 @@ import {
   MessageSquarePlus,
   Home
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-const Sidebar = ({ role = "Student" }) => {
+const Sidebar = () => {
+  const { user, logout } = useAuth();
+  const userName = user?.name || "Yogesh";
+  const userRole = user?.role || "Student";
+  const initials = userName.substring(0, 2).toUpperCase();
+
   const menuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard || Home },
     { name: 'Agents', path: '/agents', icon: Shield || Users },
@@ -67,18 +73,19 @@ const Sidebar = ({ role = "Student" }) => {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-black border border-border overflow-hidden ring-0 group-hover:ring-2 ring-white/20 transition-all">
                 <div className="w-full h-full bg-accent flex items-center justify-center text-white text-xs font-bold">
-                  YG
+                  {initials}
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-white truncate">Yogesh</p>
-                <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{role}</p>
+                <p className="text-sm font-bold text-white truncate">{userName}</p>
+                <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{userRole}</p>
               </div>
             </div>
           </div>
           
           <NavLink 
             to="/login" 
+            onClick={logout}
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:text-white hover:bg-background transition-all w-full"
           >
             <LogOut size={18} />

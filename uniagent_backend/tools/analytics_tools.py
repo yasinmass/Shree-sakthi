@@ -1,4 +1,4 @@
-def get_pass_stats(dept=None):
+def get_pass_stats(dept=None, **kwargs):
     """
     Return pass/fail statistics per department (or for a specific dept).
     Pass threshold: marks >= 40% of max_marks.
@@ -6,8 +6,10 @@ def get_pass_stats(dept=None):
     from college.models import Result
     
     qs = Result.objects.select_related('student', 'course')
-    if dept:
-        qs = qs.filter(student__department__iexact=dept)
+    
+    dept_val = dept if dept is not None else kwargs.get('department')
+    if dept_val:
+        qs = qs.filter(student__department__iexact=dept_val)
 
     stats = {}
     for r in qs:
@@ -36,7 +38,7 @@ def get_pass_stats(dept=None):
     return result
 
 
-def get_dept_performance():
+def get_dept_performance(**kwargs):
     """
     Return average GPA and average marks per department.
     """
@@ -64,7 +66,7 @@ def get_dept_performance():
     return result
 
 
-def get_enrollment_trends():
+def get_enrollment_trends(**kwargs):
     """
     Return enrollment count per year per department.
     Shows how many students are in each year for each dept.

@@ -2,16 +2,24 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, LogIn } from 'lucide-react';
 import Squares from '../components/Squares';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Simulate navigation to dashboard
-    navigate('/dashboard');
+    setErrorMsg('');
+    const result = await login(email, password);
+    if (result.success) {
+      navigate('/dashboard');
+    } else {
+      setErrorMsg(result.error);
+    }
   };
 
   return (
@@ -32,6 +40,12 @@ const Login = () => {
             <h1 className="text-4xl font-bold text-green-500 mb-3 tracking-tight italic">Responsive <span className="text-white not-italic">formaly</span></h1>
             <p className="text-gray-500 text-sm font-medium">Professional AI Agent Platform</p>
           </div>
+
+          {errorMsg && (
+            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center font-bold">
+              {errorMsg}
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">

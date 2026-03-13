@@ -6,11 +6,13 @@ import Dashboard from './pages/Dashboard';
 import Agents from './pages/Agents';
 import Chat from './pages/Chat';
 import Profile from './pages/Profile';
+import { AuthProvider } from './context/AuthContext';
 
 function App() {
   return (
-    <Router>
-      <Routes>
+    <AuthProvider>
+      <Router>
+        <Routes>
         {/* Authentication */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
@@ -24,8 +26,9 @@ function App() {
         {/* Global Redirects */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

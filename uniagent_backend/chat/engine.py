@@ -1,185 +1,185 @@
 """
 chat/engine.py
 
-Core AI processing pipeline:
-  1. Load Agent from MySQL
-  2. Load conversation memory for this session
-  3. Restrict tools to this agent's domain
-  4. Call Gemini with system prompt + history + tools
-  5. If Gemini makes a tool call → execute → feed result back
-  6. Return final response with reasoning trace
+Core AI processing pipeline using Ollama.
 """
 
 import json
-from google import genai
-from google.genai import types
-from django.conf import settings
-
+import requests
 from agents.models import Agent
+from chat.tool_registry import TOOL_REGISTRY, TOOL_DECLARATIONS
 from chat.memory import get_memory, save_memory
-from chat.tool_registry import get_tools_for_domain
-from tools import get_tool_function
 
+OLLAMA_URL = "http://localhost:11434/api/chat"
+OLLAMA_MODEL = "mistral:7b"
 
-def _get_client():
-    return genai.Client(api_key=settings.GEMINI_API_KEY)
-
-
-def process_chat(agent_id: int, message: str, session_id: str) -> dict:
-    """
-    Main chat processing entry point.
-
-    Args:
-        agent_id:   ID of the Agent record in MySQL
-        message:    User's natural language message
-        session_id: Client-provided session identifier for memory
-
-    Returns:
-        {
-            "message":      str,   # final human-readable answer
-            "data":         list,  # rows returned by the tool (if any)
-            "reasoning":    str,   # explanation of what the AI did
-            "action_taken": str,   # which tool was called (if any)
-            "agent_name":   str,
-        }
-    """
-    # ── 1. Load Agent ────────────────────────────────────────────────────────
+def process_chat(agent_id, message, session_id, user_role='Student'):
     try:
-        agent = Agent.objects.get(pk=agent_id)
-    except Agent.DoesNotExist:
-        return _error(f"Agent with id={agent_id} not found.")
+        agent = Agent.objects.get(id=agent_id)
+        domain = agent.domain
+        
+        history = get_memory(session_id)
+        raw_tool_decls = TOOL_DECLARATIONS.get(domain, [])
+        raw_tool_funcs = TOOL_REGISTRY.get(domain, {})
+        
+        # --- Role-Based Tool Restrictions ---
+        allowed_tools = None
+        if user_role == 'Student':
+            allowed_tools = ['get_student_attendance']
+        elif user_role == 'Faculty':
+            allowed_tools = [
+                # student tools
+                'get_students', 'enroll_student', 'update_student', 'delete_student',
+                # exam tools
+                'get_top_students', 'record_marks', 'schedule_exam',
+                # attendance tools
+                'get_low_attendance', 'mark_attendance', 'get_student_attendance'
+            ]
+        # HOD / Admin have allowed_tools = None (unrestricted)
+        
+        tool_decls = []
+        for td in raw_tool_decls:
+            if allowed_tools is None or td['name'] in allowed_tools:
+                tool_decls.append(td)
+                
+        tool_funcs = {}
+        for tname, func in raw_tool_funcs.items():
+            if allowed_tools is None or tname in allowed_tools:
+                tool_funcs[tname] = func
 
-    # ── 2. Load memory ───────────────────────────────────────────────────────
-    history = get_memory(session_id)
-
-    # ── 3. Build tool list ───────────────────────────────────────────────────
-    client = _get_client()
-    domain_tools = get_tools_for_domain(agent.domain)
-
-    if not domain_tools:
-        return _error(f"No tools configured for domain '{agent.domain}'.")
-
-    # In google.genai, we use types.Tool
-    gemini_tools = [types.Tool(function_declarations=domain_tools)]
-
-    # ── 4. Call Gemini ───────────────────────────────────────────────────────
-    
-    # Map memory dicts to google.genai Content objects
-    mapped_history = []
-    for m in history:
-        mapped_history.append(
-            types.Content(
-                role=m["role"],
-                parts=[types.Part.from_text(text=p) for p in m["parts"]]
-            )
-        )
-
-    chat = client.chats.create(
-        model='gemini-2.5-flash',
-        config=types.GenerateContentConfig(
-            system_instruction=agent.system_prompt,
-            tools=gemini_tools,
-        ),
-        history=mapped_history
-    )
-
-    try:
-        response = chat.send_message(message)
-    except Exception as e:
-        return _error(f"Gemini API error: {str(e)}")
-
-    # ── 5. Handle tool call ──────────────────────────────────────────────────
-    action_taken = None
-    tool_result  = None
-    data         = []
-
-    # Check if Gemini decided to call a function
-    if response.function_calls:
-        fn_call = response.function_calls[0]
-        fn_name = fn_call.name
-        fn_args = dict(fn_call.args) if fn_call.args else {}
-
-        action_taken = fn_name
-
-        # Execute the tool
-        tool_fn = get_tool_function(fn_name)
-        if tool_fn is None:
-            tool_result = {"error": f"Tool '{fn_name}' is not registered."}
+        if not tool_decls:
+            tool_list = "\n(No tools are authorized for your current role in this domain)"
         else:
-            try:
-                # Execute mapped function
-                tool_result = tool_fn(**fn_args)
-            except Exception as e:
-                tool_result = {"error": f"Tool execution failed: {str(e)}"}
+            tool_list = "\n".join([
+                f"- {t.get('name', 'unknown')}: {t.get('description', '')}"
+                for t in tool_decls
+            ])
 
-        # Return tool result back to Gemini for a natural language summary
+        system_prompt = f"""{agent.system_prompt}
+
+You are an AI data retrieval agent. DO NOT answer data questions from your own knowledge. YOU MUST USE TOOLS to fetch real data from the database.
+
+Available tools for domain '{domain}':
+{tool_list}
+
+INSTRUCTIONS:
+1. If the user asks for data (e.g. "show faculty", "get attendance"), YOU MUST call the appropriate tool.
+2. ALWAYS return EXACTLY ONE valid JSON object. No lists, no extra text.
+3. To call a tool, use exactly this format:
+{{
+  "action": "tool_name",
+  "params": {{"param1": "value1"}}
+}}
+4. Only if the user says a casual greeting (like "hello"), use this format:
+{{
+  "action": "text",
+  "params": {{}},
+  "message": "Hello! I can help you fetch data."
+}}
+
+CRITICAL: Do NOT hallucinate data. Do NOT return an array of JSON objects. Choose ONE tool and return ONE tool-call JSON."""
+
+        messages = [{"role": "system", "content": system_prompt}]
+
+        for h in history:
+            if isinstance(h, dict) and "role" in h and "content" in h:
+                if isinstance(h["content"], str):
+                    messages.append({"role": h["role"], "content": h["content"]})
+
+        messages.append({"role": "user", "content": message})
+
+        print(f"[DEBUG] Sending {len(messages)} messages to Ollama")
+
+        response = requests.post(OLLAMA_URL, json={
+            "model": OLLAMA_MODEL,
+            "messages": messages,
+            "stream": False,
+            "format": "json",
+            "options": {
+                "temperature": 0.0
+            }
+        }, timeout=60)
+
+        response.raise_for_status()
+        raw = response.json()["message"]["content"].strip()
+        print(f"[ENGINE] Raw model output: {raw}")
+
+        # Strip markdown code blocks if model added them
+        if "```" in raw:
+            raw = raw.split("```")[1]
+            if raw.lower().startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+
         try:
-            # We send back the function response
-            part = types.Part.from_function_response(
-                name=fn_name,
-                response={"result": json.dumps(tool_result, default=str)}
-            )
-            follow_up = chat.send_message([part])
-            final_text = _extract_text(follow_up)
-        except Exception as e:
-            final_text = f"Tool executed. Result: {json.dumps(tool_result, default=str)}"
+            parsed = json.loads(raw)
+            
+            # If Ollama hallucinates a list of JSONs, grab the first one
+            if isinstance(parsed, list):
+                if len(parsed) > 0:
+                    parsed = parsed[0]
+                else:
+                    parsed = {}
 
-        # Normalise data list
-        if isinstance(tool_result, list):
-            data = tool_result
-        elif isinstance(tool_result, dict) and 'records' in tool_result:
-            data = tool_result['records']
-        else:
-            data = [tool_result] if tool_result else []
+            action = parsed.get("action", "text")
+            params = parsed.get("params", {})
+            
+            if action != "text" and action in tool_funcs:
+                print(f"[ENGINE] Calling: {action}({params})")
+                try:
+                    result = tool_funcs[action](**params)
+                    data = result if isinstance(result, list) else [result]
+                    save_memory(session_id, message, f"Called {action} returning data.")
+                    return {
+                        "message": "Here are the results.",
+                        "data": data,
+                        "reasoning": f"Called {action} with {params}",
+                        "action_taken": action,
+                        "agent_name": agent.name,
+                        "session_id": session_id
+                    }
+                except Exception as e:
+                    return {
+                        "message": f"Tool execution error: {str(e)}",
+                        "data": [],
+                        "reasoning": str(e),
+                        "action_taken": "error",
+                        "agent_name": agent.name,
+                        "session_id": session_id
+                    }
+            
+            # Action text or unknown action
+            text_response = parsed.get("message", raw)
+            save_memory(session_id, message, text_response)
+            return {
+                "message": text_response,
+                "data": [],
+                "reasoning": "Text response",
+                "action_taken": "text_response",
+                "agent_name": agent.name,
+                "session_id": session_id
+            }
 
-        reasoning = (
-            f"I identified that your request requires the '{fn_name}' action. "
-            f"I called it with arguments: {json.dumps(fn_args, default=str)}. "
-            f"The operation returned {len(data)} record(s)."
-        )
+        except json.JSONDecodeError as e:
+            print(f"[ENGINE] JSON parse failed: {e} | Raw: {raw}")
+            save_memory(session_id, message, raw)
+            return {
+                "message": raw,
+                "data": [],
+                "reasoning": "Model returned text instead of JSON",
+                "action_taken": "text_response",
+                "agent_name": agent.name,
+                "session_id": session_id
+            }
 
-        # Save to memory
-        save_memory(session_id, message, final_text)
-
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {
-            "message":      final_text,
-            "data":         data,
-            "reasoning":    reasoning,
-            "action_taken": action_taken,
-            "agent_name":   agent.name,
+            "message": f"Error: {str(e)}",
+            "data": [],
+            "reasoning": str(e),
+            "action_taken": "error",
+            "agent_name": "Unknown",
+            "session_id": session_id
         }
-
-    # ── 6. No tool call — plain text response (e.g. refusal or greeting) ────
-    final_text = _extract_text(response)
-    save_memory(session_id, message, final_text)
-
-    return {
-        "message":      final_text,
-        "data":         [],
-        "reasoning":    "No tool call was needed. The query was answered through conversation.",
-        "action_taken": None,
-        "agent_name":   agent.name,
-    }
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _extract_text(response) -> str:
-    """Pull the first text part from a Gemini response."""
-    try:
-        # In google.genai, response.text gets the primary joined text from parts
-        if response.text:
-            return response.text.strip()
-    except Exception:
-        pass
-    return "I'm sorry, I couldn't generate a response."
-
-
-def _error(message: str) -> dict:
-    return {
-        "message":      message,
-        "data":         [],
-        "reasoning":    message,
-        "action_taken": None,
-        "agent_name":   "Unknown",
-    }

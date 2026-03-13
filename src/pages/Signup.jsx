@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Lock, ChevronDown } from 'lucide-react';
 import Squares from '../components/Squares';
+import { useAuth } from '../context/AuthContext';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -10,11 +11,19 @@ const Signup = () => {
     password: '',
     role: 'Student'
   });
+  const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
+  const { signup } = useAuth();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setErrorMsg('');
+    const result = await signup(formData.name, formData.email, formData.password, formData.role);
+    if (result.success) {
+      navigate('/dashboard');
+    } else {
+      setErrorMsg(result.error);
+    }
   };
 
   return (
@@ -35,6 +44,12 @@ const Signup = () => {
             <h1 className="text-3xl font-bold text-green-500 mb-2 tracking-tight italic">Responsive <span className="text-white not-italic">formaly</span></h1>
             <p className="text-gray-500 text-sm font-medium">Join the next-gen AI network</p>
           </div>
+
+          {errorMsg && (
+            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center font-bold">
+              {errorMsg}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">

@@ -3,9 +3,10 @@ import Sidebar from '../components/Sidebar';
 import AgentCard from '../components/AgentCard';
 import { Plus, Search, X, Loader2, Bot, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { getAgents, createAgent, deleteAgent } from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 // ─── Create Agent Modal ────────────────────────────────────────────────────
-const CreateAgentModal = ({ onClose, onCreated }) => {
+const CreateAgentModal = ({ onClose, onCreated, userEmail, userRole }) => {
   const [purpose, setPurpose] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,7 +20,7 @@ const CreateAgentModal = ({ onClose, onCreated }) => {
     setError('');
 
     try {
-      const res = await createAgent(trimmed);
+      const res = await createAgent(trimmed, userEmail, userRole);
       onCreated(res.data);
       onClose();
     } catch (err) {
@@ -52,7 +53,7 @@ const CreateAgentModal = ({ onClose, onCreated }) => {
             </div>
             <div>
               <h2 className="text-xl font-bold text-white tracking-tight">Create New Agent</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Powered by Gemini AI</p>
+              <p className="text-xs text-gray-500 mt-0.5">Powered by local Ollama AI</p>
             </div>
           </div>
           <button
@@ -79,7 +80,7 @@ const CreateAgentModal = ({ onClose, onCreated }) => {
               autoFocus
             />
             <p className="text-xs text-gray-600 mt-1.5">
-              Be specific — Gemini will auto-generate the agent's name, description, and system prompt.
+              Be specific — Ollama will auto-generate the agent's name, description, and system prompt.
             </p>
           </div>
 
@@ -95,7 +96,7 @@ const CreateAgentModal = ({ onClose, onCreated }) => {
           {loading && (
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <Loader2 size={14} className="animate-spin" />
-              Gemini is designing your agent… this takes ~5 seconds
+              Ollama is designing your agent… this might take a few moments
             </div>
           )}
 
@@ -155,7 +156,7 @@ const EmptyState = ({ onCreateClick }) => (
     </div>
     <h3 className="text-xl font-bold text-white mb-2">No agents yet</h3>
     <p className="text-gray-500 text-sm max-w-xs mb-8 leading-relaxed">
-      Create your first AI agent. Describe its purpose and Gemini will configure it automatically.
+      Create your first AI agent. Describe its purpose and Ollama will configure it automatically.
     </p>
     <button
       onClick={onCreateClick}
@@ -191,6 +192,7 @@ const formatAge = (isoString) => {
 
 // ─── Main Agents Page ─────────────────────────────────────────────────────
 const Agents = () => {
+  const { user } = useAuth();
   const [agents,      setAgents]      = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [fetchError,  setFetchError]  = useState('');
@@ -201,17 +203,18 @@ const Agents = () => {
 
   // ── Fetch agents on mount ────────────────────────────────────────────────
   const loadAgents = useCallback(async () => {
+    if (!user?.email) return;
     setLoading(true);
     setFetchError('');
     try {
-      const res = await getAgents();
+      const res = await getAgents(user.email);
       setAgents(res.data);
     } catch (err) {
       setFetchError('Could not connect to the backend. Is Django running on port 8000?');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.email]);
 
   useEffect(() => { loadAgents(); }, [loadAgents]);
 
@@ -357,6 +360,8 @@ const Agents = () => {
         <CreateAgentModal
           onClose={() => setShowModal(false)}
           onCreated={handleCreated}
+          userEmail={user?.email}
+          userRole={user?.role}
         />
       )}
 

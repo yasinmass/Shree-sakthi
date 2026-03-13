@@ -1,7 +1,7 @@
 from datetime import date
 
 
-def get_low_attendance(threshold=75, dept=None):
+def get_low_attendance(threshold=75, dept=None, **kwargs):
     """
     Return students whose attendance percentage is below the given threshold.
     Aggregates across all their courses for the most recent percentage entry.
@@ -9,8 +9,10 @@ def get_low_attendance(threshold=75, dept=None):
     from college.models import Attendance
     
     qs = Attendance.objects.select_related('student', 'course')
-    if dept:
-        qs = qs.filter(student__department__iexact=dept)
+    
+    dept_val = dept if dept is not None else kwargs.get('department')
+    if dept_val:
+        qs = qs.filter(student__department__iexact=dept_val)
 
     # Get unique (student, course) → latest percentage
     seen = {}
@@ -44,7 +46,7 @@ def get_low_attendance(threshold=75, dept=None):
     return result
 
 
-def mark_attendance(roll_no, course_id, status='P'):
+def mark_attendance(roll_no=None, course_id=None, status='P', **kwargs):
     """
     Mark today's attendance for a student in a course.
     status: 'P' (Present), 'A' (Absent), 'L' (Leave)
@@ -94,7 +96,7 @@ def mark_attendance(roll_no, course_id, status='P'):
     }
 
 
-def get_student_attendance(roll_no, month=None):
+def get_student_attendance(roll_no=None, month=None, **kwargs):
     """
     Get attendance records for a specific student.
     Optionally filter by month (1-12).

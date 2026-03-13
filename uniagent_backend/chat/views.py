@@ -36,8 +36,10 @@ class ChatView(APIView):
                 {'error': 'agent_id must be an integer.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+            
+        role = request.data.get('role', 'Student')
 
-        result = process_chat(agent_id, message, session_id)
+        result = process_chat(agent_id, message, session_id, role)
 
         return Response({
             **result,

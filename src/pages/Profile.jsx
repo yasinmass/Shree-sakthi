@@ -1,16 +1,21 @@
 import React from 'react';
 import Sidebar from '../components/Sidebar';
 import { User, Mail, Shield, GraduationCap, MapPin, Camera } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Profile = () => {
-  const profileData = {
-    name: "Yogesh",
-    email: "yogesh@university.edu",
-    role: "Student",
-    department: "Computer Science",
-    batch: "2022-2026",
-    location: "Campus Block A",
-  };
+  const { user } = useAuth();
+  
+  if (!user) {
+    return (
+      <div className="flex bg-background min-h-screen items-center justify-center text-white">
+        Loading...
+      </div>
+    );
+  }
+
+  const profileData = user;
+  const initials = profileData.name.substring(0, 2).toUpperCase();
 
   return (
     <div className="flex bg-background min-h-screen text-white">
@@ -28,7 +33,7 @@ const Profile = () => {
             <div className="bg-secondary border border-border rounded-3xl p-8 flex flex-col items-center text-center">
               <div className="relative group mb-6">
                 <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-700 to-black border-2 border-white/10 flex items-center justify-center text-4xl font-black text-white overflow-hidden ring-4 ring-transparent hover:ring-white/5 transition-all">
-                  YG
+                  {initials}
                 </div>
                 <button className="absolute bottom-0 right-0 p-2.5 bg-white text-black rounded-full shadow-xl hover:scale-110 transition-all">
                   <Camera size={16} />

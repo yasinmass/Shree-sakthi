@@ -1,12 +1,14 @@
-def get_faculty(dept=None):
+def get_faculty(dept=None, **kwargs):
     """
     List faculty members, optionally filtered by department.
     """
     from college.models import Faculty
     
     qs = Faculty.objects.all()
-    if dept:
-        qs = qs.filter(department__iexact=dept)
+    
+    dept_val = dept if dept is not None else kwargs.get('department')
+    if dept_val:
+        qs = qs.filter(department__iexact=dept_val)
 
     return [
         {
@@ -20,11 +22,13 @@ def get_faculty(dept=None):
     ]
 
 
-def add_faculty(name, dept, email):
+def add_faculty(name=None, dept=None, email=None, **kwargs):
     """
     Add a new faculty member.
     """
     from college.models import Faculty
+    
+    dept = dept or kwargs.get('department')
     
     if Faculty.objects.filter(email__iexact=email).exists():
         return {"error": f"Faculty with email {email} already exists."}
@@ -43,7 +47,7 @@ def add_faculty(name, dept, email):
     }
 
 
-def assign_subject(faculty_name, subject):
+def assign_subject(faculty_name=None, subject=None, **kwargs):
     """
     Assign an existing course (subject) to a faculty member by name.
     Looks up faculty and course by name (case-insensitive).
@@ -75,7 +79,7 @@ def assign_subject(faculty_name, subject):
     }
 
 
-def get_workload():
+def get_workload(**kwargs):
     """
     Return each faculty member's course count (workload).
     """

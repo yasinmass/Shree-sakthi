@@ -15,6 +15,7 @@ class Agent(models.Model):
     description   = models.TextField(blank=True)
     domain        = models.CharField(max_length=50, choices=DOMAIN_CHOICES)
     system_prompt = models.TextField()
+    owner_email   = models.EmailField(blank=True, null=True, default="admin@university.edu")
     created_at    = models.DateTimeField(auto_now_add=True)
 
     class Meta:
